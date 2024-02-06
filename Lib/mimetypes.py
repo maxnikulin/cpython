@@ -83,7 +83,7 @@ class MimeTypes:
         for name in filenames:
             self.read(name, strict)
 
-    def add_type(self, type, ext, strict=True):
+    def add_type(self, type, ext, strict=True, fallback=False):
         """Add a mapping between a type and an extension.
 
         When the extension is already known, the new
@@ -94,7 +94,16 @@ class MimeTypes:
         If strict is true, information will be added to
         list of standard types, else to the list of non-standard
         types.
+
+        If fallback is true then do not override
+        existing extension to media type mapping and
+        add extension to the end of possible variants
+        for the given media type.
         """
+        if fallback:
+            self._add_type_fallback(type, ext, strict)
+            return
+
         self.types_map[strict][ext] = type
         exts = self.types_map_inv[strict].setdefault(type, [])
         if ext in exts:
@@ -104,6 +113,23 @@ class MimeTypes:
                 del exts[i]
 
         exts.insert(0, ext)
+
+    def _add_type_fallback(self, type, ext, strict=True):
+        """Add a fallback mapping between a type and an extension.
+
+        When the extension is already known, keep existing association
+        with media type. When the type
+        is already known the extension will be added
+        to the list of known extensions with lower priority.
+
+        If strict is true, information will be added to
+        list of standard types, else to the list of non-standard
+        types.
+        """
+        self.types_map[strict].setdefault(ext, type)
+        exts = self.types_map_inv[strict].setdefault(type, [])
+        if ext not in exts:
+            exts.append(ext)
 
     def guess_type(self, url, strict=True):
         """Guess the type of a file which is either a URL or a path-like object.
@@ -203,24 +229,34 @@ class MimeTypes:
             return None
         return extensions[0]
 
-    def read(self, filename, strict=True):
+    def read(self, filename, strict=True, fallback=False):
         """
         Read a single mime.types-format file, specified by pathname.
 
         If strict is true, information will be added to
         list of standard types, else to the list of non-standard
         types.
+
+        If fallback is true then do not override
+        existing extension to media type mapping and
+        add extension to the end of possible variants
+        for the given media type.
         """
         with open(filename, encoding='utf-8') as fp:
-            self.readfp(fp, strict)
+            self.readfp(fp, strict, fallback=fallback)
 
-    def readfp(self, fp, strict=True):
+    def readfp(self, fp, strict=True, fallback=False):
         """
         Read a single mime.types-format file.
 
         If strict is true, information will be added to
         list of standard types, else to the list of non-standard
         types.
+
+        If fallback is true then do not override
+        existing extension to media type mapping and
+        add extension to the end of possible variants
+        for the given media type.
         """
         while line := fp.readline():
             words = line.split()
@@ -231,8 +267,10 @@ class MimeTypes:
             if not words:
                 continue
             type, suffixes = words[0], words[1:]
-            for suff in reversed(suffixes):
-                self.add_type(type, '.' + suff, strict)
+            if not fallback:
+                suffixes = reversed(suffixes)
+            for suff in suffixes:
+                self.add_type(type, '.' + suff, strict, fallback=fallback)
 
     def read_windows_registry(self, strict=True):
         """
@@ -342,7 +380,7 @@ def guess_extension(type, strict=True):
         init()
     return _db.guess_extension(type, strict)
 
-def add_type(type, ext, strict=True):
+def add_type(type, ext, strict=True, fallback=False):
     """Add a mapping between a type and an extension.
 
     When the extension is already known, the new
@@ -353,10 +391,15 @@ def add_type(type, ext, strict=True):
     If strict is true, information will be added to
     list of standard types, else to the list of non-standard
     types.
+
+    If fallback is true then do not override
+    existing extension to media type mapping and
+    add extension to the end of possible variants
+    for the given media type.
     """
     if _db is None:
         init()
-    return _db.add_type(type, ext, strict)
+    return _db.add_type(type, ext, strict, fallback=fallback)
 
 
 def init(files=None):

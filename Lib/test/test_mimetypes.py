@@ -256,6 +256,45 @@ class MimeTypesTestCase(unittest.TestCase):
         self.assertEqual(self.db.guess_all_extensions(
             "application/pers.test"), [".fl1", ".fl2", ".fl3", ".internal"])
 
+    def test_module_add_type_fallback(self):
+        self.assertEqual(mimetypes.guess_extension(
+            "application/pers.test"), None, "Test assumes no internal mapping")
+        self.assertEqual(
+            mimetypes.guess_type("file.ex1"),
+            (None, None),
+            "Test assumes no internal mapping")
+        mimetypes.add_type("application/pers.test", ".ex1", fallback=True)
+        mimetypes.add_type("application/pers.test", ".ex2", fallback=True)
+        mimetypes.add_type("application/pers.fallback", ".ex1", fallback=True)
+        self.assertEqual(mimetypes.guess_extension(
+            "application/pers.test"), ".ex1")
+        self.assertEqual(mimetypes.guess_type(
+            "file.ex1"), ("application/pers.test", None))
+
+    def test_instance_add_type_fallback(self):
+        self.assertEqual(self.db.guess_extension(
+            "application/pers.test"), None, "Test assumes no internal mapping")
+        self.assertEqual(
+            self.db.guess_type("file.ex1"),
+            (None, None),
+            "Test assumes no internal mapping")
+        self.db.add_type("application/pers.test", ".ex1", fallback=True)
+        self.db.add_type("application/pers.test", ".ex2", fallback=True)
+        self.db.add_type("application/pers.fallback", ".ex1", fallback=True)
+        self.assertEqual(self.db.guess_extension(
+            "application/pers.test"), ".ex1")
+        self.assertEqual(self.db.guess_type(
+            "file.ex1"), ("application/pers.test", None))
+
+    def test_guess_extension_fallback_file(self):
+        self.db.add_type("application/pers.test", ".internal")
+        with io.StringIO("application/pers.test  fl1 fl2 fl3") as fp:
+            self.db.readfp(fp, fallback=True)
+        self.assertEqual(self.db.guess_extension(
+            "application/pers.test"), ".internal")
+        self.assertEqual(self.db.guess_all_extensions(
+            "application/pers.test"), [".internal", ".fl1", ".fl2", ".fl3"])
+
 
 @unittest.skipUnless(sys.platform.startswith("win"), "Windows only")
 class Win32MimeTypesTestCase(unittest.TestCase):
