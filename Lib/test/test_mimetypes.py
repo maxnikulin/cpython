@@ -186,6 +186,7 @@ class MimeTypesTestCase(unittest.TestCase):
             self.assertEqual(mimetypes.guess_extension('image/tiff'), '.tiff')
             self.assertEqual(mimetypes.guess_extension('message/rfc822'), '.eml')
             self.assertEqual(mimetypes.guess_extension('text/html'), '.html')
+            self.assertEqual(mimetypes.guess_extension('text/javascript'), '.js')
             self.assertEqual(mimetypes.guess_extension('text/plain'), '.txt')
             self.assertEqual(mimetypes.guess_extension('video/mpeg'), '.mpeg')
             self.assertEqual(mimetypes.guess_extension('video/quicktime'), '.mov')
@@ -234,6 +235,26 @@ class MimeTypesTestCase(unittest.TestCase):
             type='image/jpg', strict=True), [])
         self.assertEqual(self.db.guess_extension(
             type='image/jpg', strict=False), '.jpg')
+
+    def test_guess_extension_override(self):
+        self.assertEqual(self.db.guess_extension(
+            "application/pers.test"), None, "Test assumes no internal mapping")
+        self.db.add_type("application/pers.test", ".apt1st")
+        self.db.add_type("application/pers.test", ".apt2nd")
+        self.assertEqual(self.db.guess_extension(
+            "application/pers.test"), ".apt2nd")
+        self.db.add_type("application/pers.test", ".apt1st")
+        self.assertEqual(self.db.guess_extension(
+            "application/pers.test"), ".apt1st")
+
+    def test_guess_extension_override_file(self):
+        self.db.add_type("application/pers.test", ".internal")
+        with io.StringIO("application/pers.test  fl1 fl2 fl3") as fp:
+            self.db.readfp(fp)
+        self.assertEqual(self.db.guess_extension(
+            "application/pers.test"), ".fl1")
+        self.assertEqual(self.db.guess_all_extensions(
+            "application/pers.test"), [".fl1", ".fl2", ".fl3", ".internal"])
 
 
 @unittest.skipUnless(sys.platform.startswith("win"), "Windows only")
